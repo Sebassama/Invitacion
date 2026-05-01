@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Defensa Pública · Ing. Telecomunicaciones</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --black: #020408;
+    --deep: #050d1a;
+    --navy: #071428;
+    --blue: #1a6fff;
+    --blue-bright: #3d8fff;
+    --blue-glow: #5aaaff;
+    --white: #f0f6ff;
+    --white-dim: #a8c0e8;
+    --mono: 'Share Tech Mono', monospace;
+    --display: 'Orbitron', monospace;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: crosshair;
+  }
+
+  /* ── MATRIX RAIN CANVAS ── */
+  #matrix-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    opacity: 0.13;
+    pointer-events: none;
+  }
+
+  /* ── SCAN LINE OVERLAY ── */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,30,80,0.03) 2px,
+      rgba(0,30,80,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ── MAIN WRAPPER ── */
+  .wrapper {
+    position: relative;
+    z-index: 2;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 40px 20px 60px;
+  }
+
+  /* ── BOOT SEQUENCE ── */
+  .boot-screen {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .boot-line {
+    font-size: 12px;
+    color: var(--blue-glow);
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: opacity 0.3s, transform 0.3s;
+    width: 100%;
+    max-width: 500px;
+  }
+  .boot-line.show { opacity: 1; transform: translateX(0); }
+
+  .boot-bar-wrap {
+    width: 100%; max-width: 500px;
+    height: 4px;
+    background: #0a1830;
+    border: 1px solid var(--blue);
+    border-radius: 2px;
+    overflow: hidden;
+    margin: 8px 0;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .boot-bar-wrap.show { opacity: 1; }
+  .boot-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--blue-bright);
+    transition: width 1.8s ease;
+  }
+
+  /* ── TOP HEADER BAR ── */
+  .header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(26,111,255,0.3);
+    margin-bottom: 32px;
+    opacity: 0;
+    animation: fadeUp 0.6s ease forwards;
+    animation-delay: 0.1s;
+  }
+  .header-dots { display: flex; gap: 7px; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .dr { background: #ff4545; } .dy { background: #ffcc00; } .dg { background: #2ecc40; }
+  .header-title { font-size: 11px; color: rgba(26,111,255,0.6); letter-spacing: 3px; }
+  .header-badge {
+    font-size: 10px; padding: 3px 10px;
+    border: 1px solid var(--blue);
+    color: var(--blue-glow);
+    letter-spacing: 2px;
+  }
+
+  /* ── INVITE HERO ── */
+  .invite-hero {
+    text-align: center;
+    margin-bottom: 10px;
+    opacity: 0;
+    animation: fadeUp 0.9s ease forwards;
+    animation-delay: 0.2s;
+  }
+  .invite-pre {
+    font-size: clamp(11px, 2.5vw, 14px);
+    color: rgba(26,111,255,0.6);
+    letter-spacing: 6px;
+    margin-bottom: 10px;
+    font-family: var(--mono);
+  }
+  .invite-big {
+    font-family: var(--display);
+    font-size: clamp(28px, 8vw, 62px);
+    font-weight: 900;
+    line-height: 1.1;
+    color: #fff;
+    letter-spacing: 2px;
+    text-shadow: 0 0 40px rgba(26,111,255,0.8), 0 0 100px rgba(26,111,255,0.3);
+    animation: glitch-base 4s infinite, textPulse 2s ease-in-out infinite;
+  }
+  @keyframes textPulse {
+    0%,100% { text-shadow: 0 0 40px rgba(26,111,255,0.8), 0 0 100px rgba(26,111,255,0.3); }
+    50% { text-shadow: 0 0 60px rgba(93,170,255,1), 0 0 130px rgba(26,111,255,0.5), 0 0 200px rgba(26,111,255,0.2); }
+  }
+  .invite-big span { color: var(--blue-glow); }
+  .invite-sub-line {
+    font-size: clamp(10px,2vw,13px);
+    color: rgba(26,111,255,0.5);
+    letter-spacing: 5px;
+    margin-top: 10px;
+    font-family: var(--mono);
+  }
+
+  /* ── ANONYMOUS MASK ── */
+  .mask-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 24px;
+    opacity: 0;
+    animation: fadeUp 0.8s ease forwards;
+    animation-delay: 0.3s;
+  }
+  .mask-img {
+    width: 200px;
+    height: auto;
+    filter: drop-shadow(0 0 22px rgba(26,111,255,0.7)) drop-shadow(0 0 50px rgba(26,111,255,0.3)) grayscale(30%) brightness(1.1);
+    animation: maskFloat 4s ease-in-out infinite, maskPulse 3s ease-in-out infinite;
+    border-radius: 4px;
+  }
+  @keyframes maskFloat {
+    0%,100% { transform: translateY(0px); }
+    50% { transform: translateY(-12px); }
+  }
+  @keyframes maskPulse {
+    0%,100% { filter: drop-shadow(0 0 22px rgba(26,111,255,0.7)) drop-shadow(0 0 50px rgba(26,111,255,0.3)) grayscale(30%) brightness(1.1); }
+    50% { filter: drop-shadow(0 0 38px rgba(93,170,255,1)) drop-shadow(0 0 80px rgba(26,111,255,0.5)) grayscale(10%) brightness(1.2); }
+  }
+
+  /* ── MAIN TITLE ── */
+  .main-title {
+    text-align: center;
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: clamp(22px, 5vw, 38px);
+    letter-spacing: 4px;
+    line-height: 1.15;
+    margin-bottom: 4px;
+    color: #fff;
+    opacity: 0;
+    animation: fadeUp 0.8s ease forwards;
+    animation-delay: 0.5s;
+    text-shadow: 0 0 30px rgba(26,111,255,0.6), 0 0 80px rgba(26,111,255,0.2);
+  }
+  .main-sub {
+    text-align: center;
+    font-size: 12px;
+    color: var(--blue-glow);
+    letter-spacing: 5px;
+    margin-bottom: 36px;
+    opacity: 0;
+    animation: fadeUp 0.8s ease forwards;
+    animation-delay: 0.7s;
+  }
+
+  /* ── DIVIDER ── */
+  .divider {
+    display: flex; align-items: center; gap: 12px;
+    margin: 20px 0;
+    opacity: 0;
+    animation: fadeUp 0.6s ease forwards;
+    animation-delay: 0.8s;
+  }
+  .divider-line { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(26,111,255,0.5), transparent); }
+  .divider-icon { color: var(--blue); font-size: 14px; }
+
+  /* ── INFO BLOCKS ── */
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 480px) { .info-grid { grid-template-columns: 1fr; } }
+
+  .info-card {
+    background: rgba(10,20,50,0.6);
+    border: 1px solid rgba(26,111,255,0.25);
+    padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+    opacity: 0;
+    animation: fadeUp 0.6s ease forwards;
+  }
+  .info-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--blue);
+  }
+  .info-card::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 0; height: 100%;
+    background: rgba(26,111,255,0.05);
+    transition: width 0.4s ease;
+  }
+  .info-card:hover::after { width: 100%; }
+
+  .info-label {
+    font-size: 10px;
+    color: rgba(26,111,255,0.7);
+    letter-spacing: 3px;
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .info-label::before {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: var(--blue);
+    border-radius: 50%;
+    animation: blink 1.5s step-end infinite;
+  }
+  .info-value {
+    font-size: 15px;
+    color: #fff;
+    font-weight: 400;
+    line-height: 1.4;
+  }
+  .info-value.accent { color: var(--blue-glow); font-size: 18px; font-family: var(--display); font-weight: 700; }
+
+  /* ── SPECIAL DATE CARD ── */
+  .date-card {
+    background: rgba(10,20,50,0.8);
+    border: 1px solid rgba(26,111,255,0.5);
+    padding: 24px;
+    margin-bottom: 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    opacity: 0;
+    animation: fadeUp 0.6s ease forwards;
+  }
+  .date-card::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(circle at 50% 50%, rgba(26,111,255,0.06) 0%, transparent 60%);
+    animation: rotate 8s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  .date-day { font-family: var(--display); font-size: clamp(40px,10vw,70px); font-weight: 900; color: #fff; line-height: 1; text-shadow: 0 0 40px rgba(26,111,255,0.7); }
+  .date-month { font-family: var(--display); font-size: 20px; font-weight: 700; color: var(--blue-glow); letter-spacing: 8px; margin: 4px 0; }
+  .date-year { font-size: 12px; color: rgba(26,111,255,0.6); letter-spacing: 5px; }
+  .date-time {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(26,111,255,0.2);
+    font-family: var(--display);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--blue-bright);
+    text-shadow: 0 0 20px rgba(26,111,255,0.5);
+  }
+  .date-tz { font-size: 11px; color: rgba(26,111,255,0.5); letter-spacing: 3px; margin-top: 4px; }
+
+  /* ── TAGS ── */
+  .tags {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    justify-content: center;
+    margin: 8px 0 20px;
+    opacity: 0;
+    animation: fadeUp 0.6s ease forwards;
+  }
+  .tag {
+    font-size: 10px;
+    padding: 5px 12px;
+    border: 1px solid rgba(26,111,255,0.4);
+    color: var(--blue-glow);
+    letter-spacing: 2px;
+    background: rgba(26,111,255,0.05);
+    transition: all 0.3s;
+  }
+  .tag:hover { background: rgba(26,111,255,0.15); border-color: var(--blue-bright); color: #fff; }
+
+  /* ── TERMINAL BLOCK ── */
+  .terminal {
+    background: rgba(5,13,26,0.9);
+    border: 1px solid rgba(26,111,255,0.2);
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    opacity: 0;
+    animation: fadeUp 0.6s ease forwards;
+  }
+  .term-line {
+    font-size: 12px;
+    line-height: 2;
+    color: rgba(160,192,232,0.8);
+  }
+  .term-prompt { color: rgba(26,111,255,0.6); }
+  .term-cmd { color: var(--blue-glow); }
+  .term-out { color: rgba(200,220,255,0.6); padding-left: 16px; }
+  .term-ok { color: #4ade80; }
+  .term-cursor {
+    display: inline-block;
+    width: 8px; height: 14px;
+    background: var(--blue-bright);
+    vertical-align: middle;
+    animation: blink 1s step-end infinite;
+  }
+
+  /* ── QUOTE ── */
+  .quote-block {
+    border-left: 2px solid var(--blue);
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    background: rgba(26,111,255,0.04);
+    opacity: 0;
+    animation: fadeUp 0.6s ease forwards;
+  }
+  .quote-text {
+    font-size: 14px;
+    color: var(--white-dim);
+    line-height: 1.7;
+    font-style: italic;
+  }
+  .quote-author { font-size: 11px; color: rgba(26,111,255,0.6); margin-top: 8px; letter-spacing: 2px; }
+
+  /* ── FOOTER ── */
+  .footer {
+    text-align: center;
+    padding-top: 20px;
+    border-top: 1px solid rgba(26,111,255,0.15);
+    opacity: 0;
+    animation: fadeUp 0.6s ease forwards;
+  }
+  .footer-sig { font-family: var(--display); font-size: 14px; color: rgba(26,111,255,0.6); letter-spacing: 4px; margin-bottom: 6px; }
+  .footer-note { font-size: 10px; color: rgba(100,140,200,0.4); letter-spacing: 2px; }
+
+  /* ── STATUS BAR ── */
+  .status-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0;
+    margin-bottom: 20px;
+    font-size: 10px;
+    color: rgba(26,111,255,0.4);
+    border-bottom: 1px solid rgba(26,111,255,0.08);
+    letter-spacing: 2px;
+    opacity: 0;
+    animation: fadeUp 0.4s ease forwards;
+    animation-delay: 0.9s;
+  }
+  .status-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: #4ade80;
+    border-radius: 50%;
+    margin-right: 6px;
+    animation: blink 2s ease-in-out infinite;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+
+  /* ── GLITCH ── */
+  .glitch {
+    position: relative;
+    animation: glitch-base 4s infinite;
+  }
+  @keyframes glitch-base {
+    0%,90%,100% { text-shadow: 0 0 30px rgba(26,111,255,0.6), 0 0 80px rgba(26,111,255,0.2); }
+    92% { text-shadow: -3px 0 rgba(255,50,50,0.7), 3px 0 rgba(26,111,255,0.7), 0 0 30px rgba(26,111,255,0.6); transform: translate(-1px, 0); }
+    94% { text-shadow: 3px 0 rgba(255,50,50,0.7), -3px 0 rgba(26,111,255,0.7), 0 0 30px rgba(26,111,255,0.6); transform: translate(1px, 0); }
+    96% { text-shadow: 0 0 30px rgba(26,111,255,0.6), 0 0 80px rgba(26,111,255,0.2); transform: translate(0, 0); }
+  }
+
+  /* ── PARTICLES ── */
+  .particle {
+    position: fixed;
+    pointer-events: none;
+    z-index: 1;
+    font-size: 11px;
+    color: rgba(26,111,255,0.15);
+    font-family: var(--mono);
+    animation: fall linear infinite;
+  }
+  @keyframes fall {
+    from { transform: translateY(-20px); opacity: 0.15; }
+    to { transform: translateY(110vh); opacity: 0; }
+  }
+
+  /* ── BOOT SCREEN HIDE ── */
+  #boot { position: fixed; inset: 0; z-index: 100; background: var(--black); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; transition: opacity 0.8s ease; }
+  #boot.hide { opacity: 0; pointer-events: none; }
+  #main-content { opacity: 0; transition: opacity 0.8s ease; }
+  #main-content.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<canvas id="matrix-canvas"></canvas>
+
+<!-- BOOT SCREEN -->
+<div id="boot">
+  <div style="width:100%;max-width:520px;">
+    <div style="font-family:'Orbitron',monospace;font-size:12px;color:rgba(26,111,255,0.5);letter-spacing:4px;margin-bottom:20px;text-align:center;">SYSTEM BOOT v2.0.26</div>
+    <div id="boot-lines"></div>
+    <div class="boot-bar-wrap" id="boot-bar-wrap"><div class="boot-bar" id="boot-bar"></div></div>
+    <div style="font-size:11px;color:rgba(26,111,255,0.4);letter-spacing:2px;margin-top:12px;text-align:center;" id="boot-pct">0%</div>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div id="main-content">
+<div class="wrapper">
+
+  <!-- HEADER BAR -->
+  <div class="header-bar">
+    <div class="header-dots">
+      <div class="dot dr"></div>
+      <div class="dot dy"></div>
+      <div class="dot dg"></div>
+    </div>
+    <div class="header-title">INVITATION.EXE</div>
+    <div class="header-badge">ENCRYPTED</div>
+  </div>
+
+  <!-- STATUS -->
+  <div class="status-bar">
+    <span><span class="status-dot"></span>CONEXIÓN SEGURA · TLS 1.3</span>
+    <span>UTC-5 · QUITO · EC</span>
+    <span>AUTH: OK</span>
+  </div>
+
+  <!-- INVITE HERO -->
+  <div class="invite-hero">
+    <div class="invite-pre">// MENSAJE ENTRANTE · CIFRADO · VERIFICADO</div>
+    <div class="invite-big glitch">TE INVITO A<br><span>MI GRADUACIÓN</span></div>
+    <div class="invite-sub-line">ACCESO AUTORIZADO · DEFENSA PÚBLICA 2026</div>
+  </div>
+
+  <!-- ANONYMOUS MASK -->
+  <div class="mask-container" style="animation-delay:0.3s">
+    <img class="mask-img"
+      src="https://static9.depositphotos.com/1071909/1103/i/950/depositphotos_11034768-stock-photo-anonymous-mask-guy-fawkes-mask.jpg"
+      alt="Anonymous mask"
+      onerror="this.style.display='none'"/>
+  </div>
+
+  <!-- MAIN TITLE -->
+  <h1 class="main-title glitch" style="animation-delay:0.5s">DEFENSA PÚBLICA</h1>
+  <p class="main-sub" style="animation-delay:0.7s">TESIS DE GRADO · ACCESO AUTORIZADO</p>
+
+  <!-- DATE CARD -->
+  <div class="date-card" style="animation-delay:0.9s">
+    <div class="date-day">07</div>
+    <div class="date-month">MAYO</div>
+    <div class="date-year">2026</div>
+    <div class="date-time">11:00 AM</div>
+    <div class="date-tz">UTC-5 · QUITO · ECUADOR</div>
+  </div>
+
+  <!-- INFO GRID -->
+  <div class="info-grid">
+    <div class="info-card" style="animation-delay:1.0s">
+      <div class="info-label">CANDIDATO</div>
+      <div class="info-value">[SEBASTIAN SAMANIEGO]</div>
+    </div>
+    <div class="info-card" style="animation-delay:1.1s">
+      <div class="info-label">TÍTULO</div>
+      <div class="info-value">Ing. Telecomunicaciones</div>
+    </div>
+    <div class="info-card" style="animation-delay:1.2s">
+      <div class="info-label">LUGAR</div>
+      <div class="info-value">[AUDITORIO DE FINANZAS]</div>
+    </div>
+    <div class="info-card" style="animation-delay:1.3s">
+      <div class="info-label">MODALIDAD</div>
+      <div class="info-value">Presencial · SOLO INVITADOS</div>
+    </div>
+  </div>
+
+  <!-- TAGS -->
+  <div class="tags" style="animation-delay:1.4s">
+    <span class="tag">BLOCKCHAIN</span>
+    <span class="tag">REDES</span>
+    <span class="tag">CIBERSEGURIDAD</span>
+    <span class="tag">ETHICAL HACKING</span>
+    <span class="tag">TELECOMUNICACIONES</span>
+  </div>
+
+  <!-- TERMINAL BLOCK -->
+  <div class="terminal" style="animation-delay:1.5s">
+    <div class="term-line"><span class="term-prompt">guest@ec:~$</span> <span class="term-cmd">verify --invite --guest=YOU</span></div>
+    <div class="term-line term-out">&gt; Autenticando credenciales de amistad...</div>
+    <div class="term-line term-out">&gt; Verificando handshake TCP... <span class="term-ok">[OK]</span></div>
+    <div class="term-line term-out">&gt; Acceso concedido. Tu presencia = 0x01 ✓</div>
+    <div class="term-line"><span class="term-prompt">guest@ec:~$</span> <span class="term-cmd">echo "¿Confirmás asistencia?"</span> <span class="term-cursor"></span></div>
+  </div>
+
+  <!-- DIVIDER -->
+  <div class="divider" style="animation-delay:1.6s">
+    <div class="divider-line"></div>
+    <div class="divider-icon">◆</div>
+    <div class="divider-line"></div>
+  </div>
+
+  <!-- QUOTE -->
+  <div class="quote-block" style="animation-delay:1.7s">
+    <div class="quote-text">"Tu presencia es el mejor 0-day exploit que podría recibir este sistema. El conocimiento es la única vulnerabilidad que vale la pena explotar."</div>
+    <div class="quote-author">// [TU NOMBRE] · Clase 2026</div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer" style="animation-delay:1.8s">
+    <div class="footer-sig">WE ARE ANONYMOUS · WE ARE ENGINEERS</div>
+    <div class="footer-note" style="margin-top:4px;">KNOWLEDGE IS FREE · EXPECT US · 07.05.2026</div>
+  </div>
+
+</div>
+</div>
+
+<script>
+const bootMsgs = [
+  "BIOS v2.0.26 — OK",
+  "Loading kernel modules...",
+  "Mounting filesystem — OK",
+  "Initializing network stack...",
+  "TCP/IP handshake — OK",
+  "Decrypting invitation payload...",
+  "Verifying SHA-256 signature — OK",
+  "Loading event_details.json — OK",
+  "All systems nominal. Launching...",
+];
+
+const bootLines = document.getElementById('boot-lines');
+const bootBarWrap = document.getElementById('boot-bar-wrap');
+const bootBar = document.getElementById('boot-bar');
+const bootPct = document.getElementById('boot-pct');
+const bootEl = document.getElementById('boot');
+const mainContent = document.getElementById('main-content');
+
+let bi = 0;
+function showBootLine() {
+  if (bi >= bootMsgs.length) {
+    bootBarWrap.classList.add('show');
+    setTimeout(() => {
+      bootBar.style.width = '100%';
+      let p = 0;
+      const pi = setInterval(() => { p += 3; if(p>=100){p=100;clearInterval(pi);} bootPct.textContent = p+'%'; }, 54);
+    }, 200);
+    setTimeout(() => {
+      bootEl.classList.add('hide');
+      mainContent.classList.add('show');
+    }, 2400);
+    return;
+  }
+  const d = document.createElement('div');
+  d.className = 'boot-line';
+  d.style.fontFamily = "'Share Tech Mono',monospace";
+  d.style.fontSize = '12px';
+  d.style.padding = '2px 0';
+  const ok = bootMsgs[bi].includes('OK') ? '<span style="color:#4ade80"> ✓</span>' : '';
+  d.innerHTML = '<span style="color:rgba(26,111,255,0.5)">> </span>' + bootMsgs[bi].replace(' — OK','') + ok;
+  bootLines.appendChild(d);
+  setTimeout(() => d.classList.add('show'), 30);
+  bi++;
+  setTimeout(showBootLine, 260);
+}
+setTimeout(showBootLine, 300);
+
+// Matrix rain
+const canvas = document.getElementById('matrix-canvas');
+const ctx = canvas.getContext('2d');
+const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEF{}<>[]//';
+let drops = [];
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const cols = Math.floor(canvas.width / 16);
+  drops = Array(cols).fill(0).map(() => Math.random() * -50);
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+function drawMatrix() {
+  ctx.fillStyle = 'rgba(2,4,8,0.05)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#1a6fff';
+  ctx.font = '14px Share Tech Mono, monospace';
+  drops.forEach((y, i) => {
+    const ch = chars[Math.floor(Math.random() * chars.length)];
+    ctx.fillStyle = y < 5 ? '#ffffff' : `rgba(26,111,255,${0.4 + Math.random()*0.3})`;
+    ctx.fillText(ch, i * 16, y * 16);
+    if (y * 16 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+    drops[i] += 0.5;
+  });
+}
+setInterval(drawMatrix, 60);
+</script>
+</body>
+</html>
